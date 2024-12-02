@@ -64,6 +64,9 @@ const lines: Line[] = [];
 const redoStack: Line[] = [];
 let currentLine: Line | null = null;
 let currentThickness: number = 2;
+let toolPreview: Drawable | null = null;
+let mouseOnCanvas = false;
+let mouseDown = false;
 
 const dispatchDrawingChangedEvent = () => {
   const event = new CustomEvent("drawing-changed");
@@ -92,7 +95,20 @@ const createLine = (x: number, y: number, thickness: number): Line => ({
   },
 });
 
+const createToolPreview = (x: number, y: number): Drawable => ({
+  display(ctx) {
+    const emoji = "⚫";
+    const size = currentThickness * 2; 
+    ctx.font = `${size}px Arial`;
+    ctx.textAlign = "center";
+    ctx.textBaseline = "middle";
+    ctx.fillText(emoji, x, y);
+  },
+});
+
 canvas.addEventListener("mousedown", (event) => {
+  mouseDown = true;
+
   const rect = canvas.getBoundingClientRect();
   const x = event.clientX - rect.left;
   const y = event.clientY - rect.top;
@@ -100,20 +116,38 @@ canvas.addEventListener("mousedown", (event) => {
   currentLine = createLine(x, y, currentThickness);
   lines.push(currentLine);
   redoStack.length = 0;
+
+  toolPreview = null;
+  dispatchDrawingChangedEvent();
+});
+
+canvas.addEventListener("mouseup", () => {
+  mouseDown = false;
+  currentLine = null;
+  dispatchDrawingChangedEvent();
 });
 
 canvas.addEventListener("mousemove", (event) => {
-  if (!currentLine) return;
-
   const rect = canvas.getBoundingClientRect();
   const x = event.clientX - rect.left;
   const y = event.clientY - rect.top;
 
-  currentLine.drag(x, y);
+  if (!mouseDown && mouseOnCanvas) {
+    toolPreview = createToolPreview(x, y);
+    dispatchDrawingChangedEvent();
+  } else if (mouseDown && currentLine) {
+    currentLine.drag(x, y);
+  }
 });
 
-canvas.addEventListener("mouseup", () => {
-  currentLine = null;
+canvas.addEventListener("mouseenter", () => {
+  mouseOnCanvas = true;
+});
+
+canvas.addEventListener("mouseleave", () => {
+  mouseOnCanvas = false;
+  toolPreview = null;
+  dispatchDrawingChangedEvent();
 });
 
 // clear
@@ -167,6 +201,10 @@ canvas.addEventListener("drawing-changed", () => {
   ctx.clearRect(0, 0, canvas.width, canvas.height); // clear the canvas
 
   for (const line of lines) {
-    line.display(ctx); 
+    line.display(ctx);
+  }
+
+  if (toolPreview) {
+    toolPreview.display(ctx);
   }
 });

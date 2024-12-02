@@ -4,7 +4,6 @@ const APP_NAME = "Sticker Sketchpad";
 const app = document.querySelector<HTMLDivElement>("#app")!;
 
 document.title = APP_NAME;
-app.innerHTML = APP_NAME;
 
 const title = document.createElement("h1");
 title.textContent = APP_NAME;
@@ -16,6 +15,7 @@ canvas.height = 256;
 canvas.id = "appCanvas";
 app.appendChild(canvas);
 
+// buttons
 const clearButton = document.createElement("button");
 clearButton.textContent = "Clear";
 clearButton.id = "clearButton";
@@ -41,6 +41,19 @@ thickButton.textContent = "Thick Marker";
 thickButton.id = "thickButton";
 app.appendChild(thickButton);
 
+const stickers = ["🙂", "🌟", "🔥"];
+stickers.forEach((sticker) => {
+  const stickerButton = document.createElement("button");
+  stickerButton.textContent = sticker;
+  stickerButton.className = "stickerButton";
+  stickerButton.addEventListener("click", () => {
+    currentTool = "sticker";
+    currentSticker = sticker;
+    toolMovedEvent();
+  });
+  app.appendChild(stickerButton);
+});
+
 const ctx = canvas.getContext("2d")!;
 ctx.lineCap = "round";
 ctx.strokeStyle = "black";
@@ -60,16 +73,31 @@ interface Line extends Drawable {
   drag(x: number, y: number): void;
 }
 
+interface Sticker extends Drawable {
+  x: number;
+  y: number;
+  emoji: string;
+  drag(x: number, y: number): void;
+}
+
 const lines: Line[] = [];
-const redoStack: Line[] = [];
+const stickersOnCanvas: Sticker[] = [];
+const redoStack: Drawable[] = [];
 let currentLine: Line | null = null;
 let currentThickness: number = 2;
+let currentSticker: string | null = null;
 let toolPreview: Drawable | null = null;
+let currentTool: "line" | "sticker" = "line";
 let mouseOnCanvas = false;
 let mouseDown = false;
 
 const dispatchDrawingChangedEvent = () => {
   const event = new CustomEvent("drawing-changed");
+  canvas.dispatchEvent(event);
+};
+
+const toolMovedEvent = () => {
+  const event = new CustomEvent("tool-moved");
   canvas.dispatchEvent(event);
 };
 
@@ -95,17 +123,44 @@ const createLine = (x: number, y: number, thickness: number): Line => ({
   },
 });
 
-const createToolPreview = (x: number, y: number): Drawable => ({
+const createSticker = (x: number, y: number, emoji: string): Sticker => ({
+  x,
+  y,
+  emoji,
+  drag(newX, newY) {
+    this.x = newX;
+    this.y = newY;
+    dispatchDrawingChangedEvent();
+  },
   display(ctx) {
-    const emoji = "⚫";
-    const size = currentThickness * 2; 
+    const size = 24;
     ctx.font = `${size}px Arial`;
     ctx.textAlign = "center";
     ctx.textBaseline = "middle";
-    ctx.fillText(emoji, x, y);
+    ctx.fillText(this.emoji, this.x, this.y);
   },
 });
 
+const createToolPreview = (x: number, y: number): Drawable => ({
+  display(ctx) {
+    if (currentTool === "sticker" && currentSticker) {
+      const size = 24;
+      ctx.font = `${size}px Arial`;
+      ctx.textAlign = "center";
+      ctx.textBaseline = "middle";
+      ctx.fillText(currentSticker, x, y);
+    } else if (currentTool === "line") {
+      const emoji = "⚫";
+      const size = currentThickness * 2;
+      ctx.font = `${size}px Arial`;
+      ctx.textAlign = "center";
+      ctx.textBaseline = "middle";
+      ctx.fillText(emoji, x, y);
+    }
+  },
+});
+
+// events
 canvas.addEventListener("mousedown", (event) => {
   mouseDown = true;
 
@@ -113,9 +168,15 @@ canvas.addEventListener("mousedown", (event) => {
   const x = event.clientX - rect.left;
   const y = event.clientY - rect.top;
 
-  currentLine = createLine(x, y, currentThickness);
-  lines.push(currentLine);
-  redoStack.length = 0;
+  if (currentTool === "line") {
+    currentLine = createLine(x, y, currentThickness);
+    lines.push(currentLine);
+    redoStack.length = 0;
+  } else if (currentTool === "sticker" && currentSticker) {
+    const sticker = createSticker(x, y, currentSticker);
+    stickersOnCanvas.push(sticker);
+    redoStack.length = 0;
+  }
 
   toolPreview = null;
   dispatchDrawingChangedEvent();
@@ -137,6 +198,9 @@ canvas.addEventListener("mousemove", (event) => {
     dispatchDrawingChangedEvent();
   } else if (mouseDown && currentLine) {
     currentLine.drag(x, y);
+  } else if (mouseDown && currentTool === "sticker") {
+    const lastSticker = stickersOnCanvas[stickersOnCanvas.length - 1];
+    if (lastSticker) lastSticker.drag(x, y);
   }
 });
 
@@ -150,58 +214,53 @@ canvas.addEventListener("mouseleave", () => {
   dispatchDrawingChangedEvent();
 });
 
-// clear
 clearButton.addEventListener("click", () => {
   lines.length = 0;
+  stickersOnCanvas.length = 0;
   redoStack.length = 0;
   dispatchDrawingChangedEvent();
 });
 
-// undo
 undoButton.addEventListener("click", () => {
-  if (lines.length === 0) return;
-
-  const lastLine = lines.pop();
-  redoStack.push(lastLine!);
+  if (lines.length > 0) {
+    redoStack.push(lines.pop()!);
+  } else if (stickersOnCanvas.length > 0) {
+    redoStack.push(stickersOnCanvas.pop()!);
+  }
   dispatchDrawingChangedEvent();
 });
 
-// redo
 redoButton.addEventListener("click", () => {
-  if (redoStack.length === 0) return;
-
-  const lastUndoneLine = redoStack.pop();
-  lines.push(lastUndoneLine!);
+  if (redoStack.length > 0) {
+    const lastUndone = redoStack.pop()!;
+    if ("points" in lastUndone) lines.push(lastUndone as Line);
+    else stickersOnCanvas.push(lastUndone as Sticker);
+  }
   dispatchDrawingChangedEvent();
 });
 
 thinButton.addEventListener("click", () => {
+  currentTool = "line";
   currentThickness = 2;
-  updateToolSelection();
+  toolMovedEvent();
 });
 
 thickButton.addEventListener("click", () => {
+  currentTool = "line";
   currentThickness = 6;
-  updateToolSelection();
+  toolMovedEvent();
 });
-
-const updateToolSelection = () => {
-  thinButton.classList.remove("selectedTool");
-  thickButton.classList.remove("selectedTool");
-
-  if (currentThickness === 2) {
-    thinButton.classList.add("selectedTool");
-  } else {
-    thickButton.classList.add("selectedTool");
-  }
-};
 
 // observer
 canvas.addEventListener("drawing-changed", () => {
-  ctx.clearRect(0, 0, canvas.width, canvas.height); // clear the canvas
+  ctx.clearRect(0, 0, canvas.width, canvas.height);
 
   for (const line of lines) {
     line.display(ctx);
+  }
+
+  for (const sticker of stickersOnCanvas) {
+    sticker.display(ctx);
   }
 
   if (toolPreview) {

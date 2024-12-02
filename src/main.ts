@@ -31,8 +31,17 @@ redoButton.textContent = "Redo";
 redoButton.id = "redoButton";
 app.appendChild(redoButton);
 
+const thinButton = document.createElement("button");
+thinButton.textContent = "Thin Marker";
+thinButton.id = "thinButton";
+app.appendChild(thinButton);
+
+const thickButton = document.createElement("button");
+thickButton.textContent = "Thick Marker";
+thickButton.id = "thickButton";
+app.appendChild(thickButton);
+
 const ctx = canvas.getContext("2d")!;
-ctx.lineWidth = 2;
 ctx.lineCap = "round";
 ctx.strokeStyle = "black";
 
@@ -47,25 +56,29 @@ interface Drawable {
 
 interface Line extends Drawable {
   points: Point[];
+  thickness: number;
   drag(x: number, y: number): void;
 }
 
 const lines: Line[] = [];
 const redoStack: Line[] = [];
 let currentLine: Line | null = null;
+let currentThickness: number = 2;
 
 const dispatchDrawingChangedEvent = () => {
   const event = new CustomEvent("drawing-changed");
   canvas.dispatchEvent(event);
 };
 
-const createLine = (x: number, y: number): Line => ({
+const createLine = (x: number, y: number, thickness: number): Line => ({
   points: [{ x, y }],
+  thickness,
   drag(x, y) {
     this.points.push({ x, y });
     dispatchDrawingChangedEvent();
   },
   display(ctx) {
+    ctx.lineWidth = this.thickness;
     ctx.beginPath();
     for (let i = 0; i < this.points.length; i++) {
       const point = this.points[i];
@@ -84,7 +97,7 @@ canvas.addEventListener("mousedown", (event) => {
   const x = event.clientX - rect.left;
   const y = event.clientY - rect.top;
 
-  currentLine = createLine(x, y);
+  currentLine = createLine(x, y, currentThickness);
   lines.push(currentLine);
   redoStack.length = 0;
 });
@@ -127,6 +140,27 @@ redoButton.addEventListener("click", () => {
   lines.push(lastUndoneLine!);
   dispatchDrawingChangedEvent();
 });
+
+thinButton.addEventListener("click", () => {
+  currentThickness = 2;
+  updateToolSelection();
+});
+
+thickButton.addEventListener("click", () => {
+  currentThickness = 6;
+  updateToolSelection();
+});
+
+const updateToolSelection = () => {
+  thinButton.classList.remove("selectedTool");
+  thickButton.classList.remove("selectedTool");
+
+  if (currentThickness === 2) {
+    thinButton.classList.add("selectedTool");
+  } else {
+    thickButton.classList.add("selectedTool");
+  }
+};
 
 // observer
 canvas.addEventListener("drawing-changed", () => {

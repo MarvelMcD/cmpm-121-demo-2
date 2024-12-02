@@ -25,7 +25,9 @@ a:hover {
 body {
   margin: 0;
   display: flex;
-  place-items: center;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center; 
   min-width: 320px;
   min-height: 100vh;
 }
@@ -79,6 +81,15 @@ button:hover {
 button:focus,
 button:focus-visible {
   outline: 4px auto -webkit-focus-ring-color;
+}
+
+
+#appCanvas {
+  border: 1px solid black; /* borders */
+  border-radius: 8px; /* rounded corners */
+  box-shadow: 0px 4px 10px rgba(0, 0, 0, 0.2); /* drop shadow */
+  display: block;
+  margin: 1rem auto; /* centering */
 }
 
 @media (prefers-color-scheme: light) {

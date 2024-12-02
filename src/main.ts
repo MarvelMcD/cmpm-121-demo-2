@@ -41,24 +41,52 @@ interface Point {
   y: number;
 }
 
-type Line = Point[];
-const lines: Line[] = []; 
-const redoStack: Line[] = []; 
-let currentLine: Line | null = null; 
+interface Drawable {
+  display(ctx: CanvasRenderingContext2D): void;
+}
+
+interface Line extends Drawable {
+  points: Point[];
+  drag(x: number, y: number): void;
+}
+
+const lines: Line[] = [];
+const redoStack: Line[] = [];
+let currentLine: Line | null = null;
 
 const dispatchDrawingChangedEvent = () => {
   const event = new CustomEvent("drawing-changed");
   canvas.dispatchEvent(event);
 };
 
+const createLine = (x: number, y: number): Line => ({
+  points: [{ x, y }],
+  drag(x, y) {
+    this.points.push({ x, y });
+    dispatchDrawingChangedEvent();
+  },
+  display(ctx) {
+    ctx.beginPath();
+    for (let i = 0; i < this.points.length; i++) {
+      const point = this.points[i];
+      if (i === 0) {
+        ctx.moveTo(point.x, point.y);
+      } else {
+        ctx.lineTo(point.x, point.y);
+      }
+    }
+    ctx.stroke();
+  },
+});
+
 canvas.addEventListener("mousedown", (event) => {
   const rect = canvas.getBoundingClientRect();
   const x = event.clientX - rect.left;
   const y = event.clientY - rect.top;
 
-  currentLine = [{ x, y }]; 
-  lines.push(currentLine); 
-  redoStack.length = 0; 
+  currentLine = createLine(x, y);
+  lines.push(currentLine);
+  redoStack.length = 0;
 });
 
 canvas.addEventListener("mousemove", (event) => {
@@ -68,37 +96,36 @@ canvas.addEventListener("mousemove", (event) => {
   const x = event.clientX - rect.left;
   const y = event.clientY - rect.top;
 
-  currentLine.push({ x, y }); 
-  dispatchDrawingChangedEvent(); 
+  currentLine.drag(x, y);
 });
 
 canvas.addEventListener("mouseup", () => {
-  currentLine = null; 
+  currentLine = null;
 });
 
 // clear
 clearButton.addEventListener("click", () => {
-  lines.length = 0; 
-  redoStack.length = 0; 
-  dispatchDrawingChangedEvent(); 
+  lines.length = 0;
+  redoStack.length = 0;
+  dispatchDrawingChangedEvent();
 });
 
 // undo
 undoButton.addEventListener("click", () => {
-  if (lines.length === 0) return; 
+  if (lines.length === 0) return;
 
-  const lastLine = lines.pop(); 
-  redoStack.push(lastLine!); 
-  dispatchDrawingChangedEvent(); 
+  const lastLine = lines.pop();
+  redoStack.push(lastLine!);
+  dispatchDrawingChangedEvent();
 });
 
 // redo
 redoButton.addEventListener("click", () => {
-  if (redoStack.length === 0) return; 
+  if (redoStack.length === 0) return;
 
-  const lastUndoneLine = redoStack.pop(); 
-  lines.push(lastUndoneLine!); 
-  dispatchDrawingChangedEvent(); 
+  const lastUndoneLine = redoStack.pop();
+  lines.push(lastUndoneLine!);
+  dispatchDrawingChangedEvent();
 });
 
 // observer
@@ -106,15 +133,6 @@ canvas.addEventListener("drawing-changed", () => {
   ctx.clearRect(0, 0, canvas.width, canvas.height); // clear the canvas
 
   for (const line of lines) {
-    ctx.beginPath();
-    for (let i = 0; i < line.length; i++) {
-      const point = line[i];
-      if (i === 0) {
-        ctx.moveTo(point.x, point.y);
-      } else {
-        ctx.lineTo(point.x, point.y);
-      }
-    }
-    ctx.stroke();
+    line.display(ctx); 
   }
 });

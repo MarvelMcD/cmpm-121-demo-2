@@ -26,29 +26,64 @@ ctx.lineWidth = 2;
 ctx.lineCap = "round";
 ctx.strokeStyle = "black";
 
-let isDrawing = false;
+interface Point {
+  x: number;
+  y: number;
+}
 
-canvas.addEventListener("mousedown", () => {
-  isDrawing = true;
-  ctx.beginPath();
+type Line = Point[];
+const lines: Line[] = []; 
+let currentLine: Line | null = null; 
+
+const dispatchDrawingChangedEvent = () => {
+  const event = new CustomEvent("drawing-changed");
+  canvas.dispatchEvent(event);
+};
+
+canvas.addEventListener("mousedown", (event) => {
+  const rect = canvas.getBoundingClientRect();
+  const x = event.clientX - rect.left;
+  const y = event.clientY - rect.top;
+
+  currentLine = [{ x, y }]; 
+  lines.push(currentLine); 
 });
 
 canvas.addEventListener("mousemove", (event) => {
-  if (!isDrawing) return;
+  if (!currentLine) return;
 
   const rect = canvas.getBoundingClientRect();
   const x = event.clientX - rect.left;
   const y = event.clientY - rect.top;
 
-  ctx.lineTo(x, y);
-  ctx.stroke();
+  currentLine.push({ x, y });
+  dispatchDrawingChangedEvent(); 
 });
 
 canvas.addEventListener("mouseup", () => {
-  isDrawing = false;
-  ctx.closePath();
+  currentLine = null; 
 });
 
+// clear
 clearButton.addEventListener("click", () => {
-  ctx.clearRect(0, 0, canvas.width, canvas.height);
+  lines.length = 0; 
+  dispatchDrawingChangedEvent(); 
+});
+
+// observer
+canvas.addEventListener("drawing-changed", () => {
+  ctx.clearRect(0, 0, canvas.width, canvas.height); // Clear the canvas
+
+  for (const line of lines) {
+    ctx.beginPath();
+    for (let i = 0; i < line.length; i++) {
+      const point = line[i];
+      if (i === 0) {
+        ctx.moveTo(point.x, point.y);
+      } else {
+        ctx.lineTo(point.x, point.y);
+      }
+    }
+    ctx.stroke();
+  }
 });

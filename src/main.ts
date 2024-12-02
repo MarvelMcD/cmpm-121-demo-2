@@ -21,6 +21,16 @@ clearButton.textContent = "Clear";
 clearButton.id = "clearButton";
 app.appendChild(clearButton);
 
+const undoButton = document.createElement("button");
+undoButton.textContent = "Undo";
+undoButton.id = "undoButton";
+app.appendChild(undoButton);
+
+const redoButton = document.createElement("button");
+redoButton.textContent = "Redo";
+redoButton.id = "redoButton";
+app.appendChild(redoButton);
+
 const ctx = canvas.getContext("2d")!;
 ctx.lineWidth = 2;
 ctx.lineCap = "round";
@@ -33,6 +43,7 @@ interface Point {
 
 type Line = Point[];
 const lines: Line[] = []; 
+const redoStack: Line[] = []; 
 let currentLine: Line | null = null; 
 
 const dispatchDrawingChangedEvent = () => {
@@ -47,6 +58,7 @@ canvas.addEventListener("mousedown", (event) => {
 
   currentLine = [{ x, y }]; 
   lines.push(currentLine); 
+  redoStack.length = 0; 
 });
 
 canvas.addEventListener("mousemove", (event) => {
@@ -56,7 +68,7 @@ canvas.addEventListener("mousemove", (event) => {
   const x = event.clientX - rect.left;
   const y = event.clientY - rect.top;
 
-  currentLine.push({ x, y });
+  currentLine.push({ x, y }); 
   dispatchDrawingChangedEvent(); 
 });
 
@@ -67,12 +79,31 @@ canvas.addEventListener("mouseup", () => {
 // clear
 clearButton.addEventListener("click", () => {
   lines.length = 0; 
+  redoStack.length = 0; 
+  dispatchDrawingChangedEvent(); 
+});
+
+// undo
+undoButton.addEventListener("click", () => {
+  if (lines.length === 0) return; 
+
+  const lastLine = lines.pop(); 
+  redoStack.push(lastLine!); 
+  dispatchDrawingChangedEvent(); 
+});
+
+// redo
+redoButton.addEventListener("click", () => {
+  if (redoStack.length === 0) return; 
+
+  const lastUndoneLine = redoStack.pop(); 
+  lines.push(lastUndoneLine!); 
   dispatchDrawingChangedEvent(); 
 });
 
 // observer
 canvas.addEventListener("drawing-changed", () => {
-  ctx.clearRect(0, 0, canvas.width, canvas.height); // Clear the canvas
+  ctx.clearRect(0, 0, canvas.width, canvas.height); // clear the canvas
 
   for (const line of lines) {
     ctx.beginPath();

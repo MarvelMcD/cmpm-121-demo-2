@@ -41,18 +41,33 @@ thickButton.textContent = "Thick Marker";
 thickButton.id = "thickButton";
 app.appendChild(thickButton);
 
-const stickers = ["🙂", "🌟", "🔥"];
-stickers.forEach((sticker) => {
-  const stickerButton = document.createElement("button");
-  stickerButton.textContent = sticker;
-  stickerButton.className = "stickerButton";
-  stickerButton.addEventListener("click", () => {
-    currentTool = "sticker";
-    currentSticker = sticker;
-    toolMovedEvent();
+const customStickerButton = document.createElement("button");
+customStickerButton.textContent = "Add Custom Sticker";
+customStickerButton.id = "customStickerButton";
+app.appendChild(customStickerButton);
+
+const stickersData: string[] = ["🙂", "🌟", "🔥"];
+
+const stickersContainer = document.createElement("div");
+stickersContainer.id = "stickersContainer";
+app.appendChild(stickersContainer);
+
+// render stickers
+const renderStickers = () => {
+  stickersContainer.innerHTML = "";
+  stickersData.forEach((sticker) => {
+    const stickerButton = document.createElement("button");
+    stickerButton.textContent = sticker;
+    stickerButton.className = "stickerButton";
+    stickerButton.addEventListener("click", () => {
+      currentTool = "sticker";
+      currentSticker = sticker;
+      toolMovedEvent();
+    });
+    stickersContainer.appendChild(stickerButton);
   });
-  app.appendChild(stickerButton);
-});
+};
+renderStickers();
 
 const ctx = canvas.getContext("2d")!;
 ctx.lineCap = "round";
@@ -249,6 +264,14 @@ thickButton.addEventListener("click", () => {
   currentTool = "line";
   currentThickness = 6;
   toolMovedEvent();
+});
+
+customStickerButton.addEventListener("click", () => {
+  const newSticker = prompt("Enter a custom sticker emoji:", "🎉");
+  if (newSticker) {
+    stickersData.push(newSticker);
+    renderStickers();
+  }
 });
 
 // observer

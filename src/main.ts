@@ -31,6 +31,17 @@ redoButton.textContent = "Redo";
 redoButton.id = "redoButton";
 app.appendChild(redoButton);
 
+const colorSlider = document.createElement("input");
+colorSlider.type = "color";
+colorSlider.id = "colorSlider";
+colorSlider.value = "#000000";
+app.appendChild(colorSlider);
+
+const colorLabel = document.createElement("label");
+colorLabel.htmlFor = "colorSlider";
+colorLabel.textContent = "Pen Color:";
+app.insertBefore(colorLabel, colorSlider);
+
 const thinButton = document.createElement("button");
 thinButton.textContent = "Thin Pen";
 thinButton.id = "thinButton";
@@ -89,6 +100,7 @@ interface Drawable {
 interface Line extends Drawable {
   points: Point[];
   thickness: number;
+  color: string;
   drag(x: number, y: number): void;
 }
 
@@ -96,6 +108,7 @@ interface Sticker extends Drawable {
   x: number;
   y: number;
   emoji: string;
+  color: string;
   drag(x: number, y: number): void;
 }
 
@@ -105,6 +118,7 @@ const redoStack: Drawable[] = [];
 let currentLine: Line | null = null;
 let currentThickness: number = 2;
 let currentSticker: string | null = null;
+let currentColor: string = "#000000"; // Default color for lines
 let toolPreview: Drawable | null = null;
 let currentTool: "line" | "sticker" = "line";
 let mouseOnCanvas = false;
@@ -120,15 +134,17 @@ const toolMovedEvent = () => {
   canvas.dispatchEvent(event);
 };
 
-const createLine = (x: number, y: number, thickness: number): Line => ({
+const createLine = (x: number, y: number, thickness: number, color: string): Line => ({
   points: [{ x, y }],
   thickness,
+  color,
   drag(x, y) {
     this.points.push({ x, y });
     dispatchDrawingChangedEvent();
   },
   display(ctx) {
     ctx.lineWidth = this.thickness;
+    ctx.strokeStyle = this.color;
     ctx.beginPath();
     for (let i = 0; i < this.points.length; i++) {
       const point = this.points[i];
@@ -142,10 +158,11 @@ const createLine = (x: number, y: number, thickness: number): Line => ({
   },
 });
 
-const createSticker = (x: number, y: number, emoji: string): Sticker => ({
+const createSticker = (x: number, y: number, emoji: string, color: string): Sticker => ({
   x,
   y,
   emoji,
+  color,
   drag(newX, newY) {
     this.x = newX;
     this.y = newY;
@@ -153,6 +170,7 @@ const createSticker = (x: number, y: number, emoji: string): Sticker => ({
   },
   display(ctx) {
     const size = 24;
+    ctx.fillStyle = this.color;
     ctx.font = `${size}px Arial`;
     ctx.textAlign = "center";
     ctx.textBaseline = "middle";
@@ -164,6 +182,7 @@ const createToolPreview = (x: number, y: number): Drawable => ({
   display(ctx) {
     if (currentTool === "sticker" && currentSticker) {
       const size = 24;
+      ctx.fillStyle = currentColor;
       ctx.font = `${size}px Arial`;
       ctx.textAlign = "center";
       ctx.textBaseline = "middle";
@@ -171,6 +190,7 @@ const createToolPreview = (x: number, y: number): Drawable => ({
     } else if (currentTool === "line") {
       const emoji = "⚫";
       const size = currentThickness * 1.5;
+      ctx.fillStyle = currentColor;
       ctx.font = `${size}px Arial`;
       ctx.textAlign = "center";
       ctx.textBaseline = "middle";
@@ -212,11 +232,11 @@ canvas.addEventListener("mousedown", (event) => {
   const y = event.clientY - rect.top;
 
   if (currentTool === "line") {
-    currentLine = createLine(x, y, currentThickness);
+    currentLine = createLine(x, y, currentThickness, currentColor);
     lines.push(currentLine);
     redoStack.length = 0;
   } else if (currentTool === "sticker" && currentSticker) {
-    const sticker = createSticker(x, y, currentSticker);
+    const sticker = createSticker(x, y, currentSticker, currentColor);
     stickersOnCanvas.push(sticker);
     redoStack.length = 0;
   }
@@ -300,6 +320,10 @@ customStickerButton.addEventListener("click", () => {
     stickersData.push(newSticker);
     renderStickers();
   }
+});
+
+colorSlider.addEventListener("input", (event) => {
+  currentColor = (event.target as HTMLInputElement).value;
 });
 
 // observer

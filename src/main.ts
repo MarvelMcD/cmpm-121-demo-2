@@ -32,12 +32,12 @@ redoButton.id = "redoButton";
 app.appendChild(redoButton);
 
 const thinButton = document.createElement("button");
-thinButton.textContent = "Thin Marker";
+thinButton.textContent = "Thin Pen";
 thinButton.id = "thinButton";
 app.appendChild(thinButton);
 
 const thickButton = document.createElement("button");
-thickButton.textContent = "Thick Marker";
+thickButton.textContent = "Thick Pen";
 thickButton.id = "thickButton";
 app.appendChild(thickButton);
 
@@ -170,7 +170,7 @@ const createToolPreview = (x: number, y: number): Drawable => ({
       ctx.fillText(currentSticker, x, y);
     } else if (currentTool === "line") {
       const emoji = "⚫";
-      const size = currentThickness * 2;
+      const size = currentThickness * 1.5;
       ctx.font = `${size}px Arial`;
       ctx.textAlign = "center";
       ctx.textBaseline = "middle";
@@ -295,7 +295,7 @@ thickButton.addEventListener("click", () => {
 });
 
 customStickerButton.addEventListener("click", () => {
-  const newSticker = prompt("Enter a custom sticker emoji:", "🎉");
+  const newSticker = prompt("Enter a custom sticker emoji:", "❎");
   if (newSticker) {
     stickersData.push(newSticker);
     renderStickers();

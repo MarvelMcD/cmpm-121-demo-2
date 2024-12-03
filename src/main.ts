@@ -46,13 +46,17 @@ customStickerButton.textContent = "Add Custom Sticker";
 customStickerButton.id = "customStickerButton";
 app.appendChild(customStickerButton);
 
+const exportButton = document.createElement("button");
+exportButton.textContent = "Export";
+exportButton.id = "exportButton";
+app.appendChild(exportButton);
+
 const stickersData: string[] = ["🙂", "🌟", "🔥"];
 
 const stickersContainer = document.createElement("div");
 stickersContainer.id = "stickersContainer";
 app.appendChild(stickersContainer);
 
-// render stickers
 const renderStickers = () => {
   stickersContainer.innerHTML = "";
   stickersData.forEach((sticker) => {
@@ -173,6 +177,30 @@ const createToolPreview = (x: number, y: number): Drawable => ({
       ctx.fillText(emoji, x, y);
     }
   },
+});
+
+// export
+exportButton.addEventListener("click", () => {
+  const exportCanvas = document.createElement("canvas");
+  exportCanvas.width = 1024;
+  exportCanvas.height = 1024;
+
+  const exportCtx = exportCanvas.getContext("2d")!;
+  exportCtx.scale(4, 4);
+
+  for (const line of lines) {
+    line.display(exportCtx);
+  }
+
+  for (const sticker of stickersOnCanvas) {
+    sticker.display(exportCtx);
+  }
+
+  // download
+  const anchor = document.createElement("a");
+  anchor.href = exportCanvas.toDataURL("image/png");
+  anchor.download = "sketchpad.png";
+  anchor.click();
 });
 
 // events
